@@ -1,6 +1,7 @@
 from enum import Enum
 from queue import PriorityQueue
 import numpy as np
+import math
 
 
 def create_grid(data, drone_altitude, safety_distance):
@@ -140,7 +141,64 @@ def a_star(grid, h, start, goal):
     return path[::-1], path_cost
 
 
+def iterative_astar(grid, h, start, goal):
+    for depth in range(math.inf):
+            result = depth_limited_a_star(grid, h, start, goal, depth)
+            if result is not None:
+                return result
+
+def depth_limited_a_star(grid, h, start, goal, depth_limit):
+    path = []
+    path_cost = 0
+    queue = PriorityQueue()
+    queue.put((0, start))
+    visited = set(start)
+
+    branch = {}
+    found = False
+
+    while not queue.empty():
+        item = queue.get()
+        current_node = item[1]
+        if current_node == start:
+            current_cost = 0.0
+        else:
+            current_cost = branch[current_node][0]
+
+        if current_node == goal:
+            print('Found a path.')
+            found = True
+            break
+        elif current_cost + h(current_node, goal) <= depth_limit:
+            for action in valid_actions(grid, current_node):
+                da = action.delta
+                next_node = (current_node[0] + da[0], current_node[1] + da[1])
+                branch_cost = current_cost + action.cost
+                queue_cost = branch_cost + h(next_node, goal)
+
+                if next_node not in visited:
+                    visited.add(next_node)
+                    branch[next_node] = (branch_cost, current_node, action)
+                    queue.put((queue_cost, next_node))
+
+    if found:
+        n = goal
+        path_cost = branch[n][0]
+        path.append(goal)
+        while branch[n][1] != start:
+            path.append(branch[n][1])
+            n = branch[n][1]
+        path.append(branch[n][1])
+        return path[::-1], path_cost
+    else:
+        return None
+
 
 def heuristic(position, goal_position):
     return np.linalg.norm(np.array(position) - np.array(goal_position))
+
+def heuristic_Manhattan(position, goal_position):
+    dx = abs(position[0] - goal_position[0])
+    dy = abs(position[1] - goal_position[1])
+    return dx + dy
 
